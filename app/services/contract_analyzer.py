@@ -2,7 +2,7 @@ import json
 import logging
 
 from app.services.claude_client import ask_claude
-from app.services.alerting import send_alert
+from app.integrations.telegram_bot import send_alert
 from app.config.settings import settings, BASE_DIR
 from app.lib.gateway.modules import MODULES
 
@@ -74,12 +74,14 @@ Respond ONLY with the JSON object, no additional text."""
             logger.warning(
                 f"High risk contract detected: {name} (score: {result['risk_score']})"
             )
-            send_alert(
-                subject=f"High Risk Contract Alert: {name}",
-                message=f"Contract '{name}' has a risk score of {result['risk_score']}.\n\n"
-                        f"Identified Risks:\n" +
-                        "\n".join(f"- {risk}" for risk in result["risks"])
+            alert_message = (
+                f"HIGH RISK CONTRACT ALERT\n\n"
+                f"Contract: {name}\n"
+                f"Risk Score: {result['risk_score']}/100\n\n"
+                f"Identified Risks:\n" +
+                "\n".join(f"- {risk}" for risk in result["risks"])
             )
+            send_alert(alert_message)
 
         return result
 

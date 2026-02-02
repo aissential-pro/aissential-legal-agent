@@ -2,7 +2,7 @@ import logging
 
 import requests
 
-from config.settings import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
+from app.config.settings import settings
 from app.lib.connector.services import get_telegram_credentials
 
 logger = logging.getLogger(__name__)
@@ -24,9 +24,14 @@ def send_alert(message: str) -> bool:
 
         # Fallback to settings if Connector returns None
         if not token:
-            token = TELEGRAM_TOKEN
+            token = getattr(settings, 'TELEGRAM_TOKEN', None)
         if not chat_id:
-            chat_id = TELEGRAM_CHAT_ID
+            chat_id = getattr(settings, 'TELEGRAM_CHAT_ID', None)
+
+        # If still no credentials, skip sending
+        if not token or not chat_id:
+            logger.warning("Telegram credentials not configured, skipping alert")
+            return False
 
         # Truncate message to 4000 characters (Telegram limit is 4096)
         truncated_message = message[:4000] if len(message) > 4000 else message
