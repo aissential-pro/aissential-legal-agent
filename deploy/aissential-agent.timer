@@ -1,0 +1,16 @@
+[Unit]
+Description=Run AIssential Legal Agent every 30 minutes
+Documentation=https://github.com/your-username/aissential-legal-agent
+
+[Timer]
+# Run every 30 minutes
+OnCalendar=*:0/30
+# Add some randomness to avoid thundering herd (0-60 seconds)
+RandomizedDelaySec=60
+# Run immediately if a scheduled run was missed (e.g., system was off)
+Persistent=true
+# Start 2 minutes after boot
+OnBootSec=2min
+
+[Install]
+WantedBy=timers.target

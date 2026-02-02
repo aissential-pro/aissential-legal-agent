@@ -12,21 +12,27 @@ from config.settings import (
 from services.contract_analyzer import analyze_contract
 from services import file_parser
 from memory.processed_files import get_processed_ids, mark_processed
+from app.lib.connector.services import get_google_drive_credentials
 
 logger = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 
-def get_drive_service():
+def get_drive_service(credentials_path: str = None):
     """
     Create and return an authenticated Google Drive service.
+
+    Args:
+        credentials_path: Optional path to service account credentials.
+            If not provided, uses Connector or env var fallback.
 
     Returns:
         Google Drive API service instance.
     """
+    creds_path = credentials_path or GOOGLE_APPLICATION_CREDENTIALS
     credentials = Credentials.from_service_account_file(
-        GOOGLE_APPLICATION_CREDENTIALS,
+        creds_path,
         scopes=SCOPES,
     )
     service = build("drive", "v3", credentials=credentials)
@@ -44,11 +50,20 @@ def run_drive_scan():
     - Mark as processed
     """
     try:
-        service = get_drive_service()
+        # Get credentials from Connector (with env var fallback)
+        credentials_path, folder_id = get_google_drive_credentials()
+
+        # Fallback to settings if Connector returns None
+        if not credentials_path:
+            credentials_path = GOOGLE_APPLICATION_CREDENTIALS
+        if not folder_id:
+            folder_id = GOOGLE_DRIVE_FOLDER_ID
+
+        service = get_drive_service(credentials_path)
         processed_ids = get_processed_ids()
 
         # List files in the configured folder
-        query = f"'{GOOGLE_DRIVE_FOLDER_ID}' in parents and trashed = false"
+        query = f"'{folder_id}' in parents and trashed = false"
         results = (
             service.files()
             .list(

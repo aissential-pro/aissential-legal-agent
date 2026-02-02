@@ -3,6 +3,7 @@ import logging
 import requests
 
 from config.settings import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
+from app.lib.connector.services import get_telegram_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -18,12 +19,21 @@ def send_alert(message: str) -> bool:
         True on success, False on failure.
     """
     try:
+        # Get credentials from Connector (with env var fallback)
+        token, chat_id = get_telegram_credentials()
+
+        # Fallback to settings if Connector returns None
+        if not token:
+            token = TELEGRAM_TOKEN
+        if not chat_id:
+            chat_id = TELEGRAM_CHAT_ID
+
         # Truncate message to 4000 characters (Telegram limit is 4096)
         truncated_message = message[:4000] if len(message) > 4000 else message
 
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
         payload = {
-            "chat_id": TELEGRAM_CHAT_ID,
+            "chat_id": chat_id,
             "text": truncated_message,
         }
 

@@ -1,0 +1,39 @@
+[Unit]
+Description=AIssential Legal Agent - AI-powered legal news aggregator
+Documentation=https://github.com/your-username/aissential-legal-agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/aissential-legal-agent
+ExecStart=/opt/aissential-legal-agent/venv/bin/python -m app.main
+
+# Environment
+EnvironmentFile=-/opt/aissential-legal-agent/.env
+
+# User/Group (uncomment and adjust if using dedicated user)
+# User=aissential
+# Group=aissential
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/aissential-legal-agent/logs
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+# Logging
+StandardOutput=append:/opt/aissential-legal-agent/logs/service.log
+StandardError=append:/opt/aissential-legal-agent/logs/service-error.log
+
+# Restart behavior (for oneshot, this applies if it fails)
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target

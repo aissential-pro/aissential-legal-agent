@@ -4,6 +4,7 @@ import logging
 from app.services.claude_client import ask_claude
 from app.services.alerting import send_alert
 from app.config.settings import settings, BASE_DIR
+from app.lib.gateway.modules import MODULES
 
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ Contract Text:
 Respond ONLY with the JSON object, no additional text."""
 
     try:
-        response = ask_claude(SYSTEM_PROMPT, user_prompt)
+        response = ask_claude(SYSTEM_PROMPT, user_prompt, module_id=MODULES["ANALYZE_CONTRACT"])
 
         # Parse JSON response
         # Handle potential markdown code blocks
