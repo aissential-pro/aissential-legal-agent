@@ -1,130 +1,166 @@
 # AIssential Legal Agent - Context
 
 ## Project Overview
-Agent IA juridique pour analyser automatiquement des contrats depuis Google Drive, avec alertes Telegram.
+Agent IA juridique ("CLO virtuel") pour AIssential - analyse automatique des contrats, veille juridique Vietnam, et conseil proactif via Telegram.
 
 ## Tech Stack
-- **Runtime**: Python 3.10+ sur Ubuntu 22.04 (VPS)
-- **AI**: LLM Gateway -> Claude API
-- **Storage**: Google Drive (polling)
-- **Alerts**: Telegram Bot
-- **Scheduling**: Cron (toutes les 30 min)
+- **Runtime**: Python 3.10+
+- **AI**: OpenAI GPT-4o (direct) / LLM Gateway (production)
+- **Storage**: Google Drive (scan récursif multi-dossiers)
+- **Interface**: Telegram Bot (alertes + commandes interactives)
+- **Scheduling**: Cron (batch) ou Bot (interactif)
 
-## Gateway Integration
+## Current Status: OPÉRATIONNEL ✅
 
-This agent integrates with the AIssential LLM Gateway for:
-- Centralized AI request management
-- Automatic pseudonymisation
-- Usage tracking and billing
-- Failover between providers
+### Fonctionnalités actives
+- [x] Analyse automatique de contrats (PDF/DOCX)
+- [x] Scan Google Drive récursif (sous-dossiers inclus)
+- [x] Support multi-dossiers Drive
+- [x] Alertes Telegram formatées avec emojis
+- [x] Bot interactif avec commandes
+- [x] Contexte juridique Vietnam intégré
+- [x] Veille juridique avec scoring d'impact
+- [x] Surveillance des projets de loi (Quốc hội)
+- [x] Conseils proactifs sans demande
+- [x] Conformité Vietnam dans les analyses
 
-### Identity
-| Level | Value |
-|-------|-------|
-| Client ID | aissential-internal |
-| App ID | legal-agent |
-| Module IDs | analyze-contract, extract-text |
-| User ID | system-agent (automated) |
+### En préparation
+- [ ] Connexion AI Connector (credentials centralisés)
+- [ ] Connexion LLM Gateway (production)
+- [ ] API REST pour inter-agents
+- [ ] Connexion avec Admin Agent
+- [ ] Alertes email
 
-### Endpoints
-- Gateway: https://gateway.aissential.pro/v1
-- Webhook (future): /api/webhooks/gateway
+## Credentials Configured
 
-## AI Connector Integration
+### Telegram ✅
+- **Bot**: @aissential_legal_bot
+- **Status**: Opérationnel
 
-The AI Connector centralizes credentials management across all AIssential apps.
-Configure credentials once in the Connector, use them everywhere.
+### Google Drive ✅
+- **Service Account**: legal-agent-drive@legal-agent-drive.iam.gserviceaccount.com
+- **Dossiers configurés**: 3 dossiers (clients, travail, fournisseurs)
+- **Mode**: Scan récursif (sous-dossiers inclus)
 
-### How it works
-1. Agent requests credentials from Connector API
-2. Connector returns credentials for the requested service
-3. If Connector unavailable, falls back to local .env vars
-
-### Supported Services
-| Service | Credentials |
-|---------|-------------|
-| telegram | token, chat_id |
-| google-drive | credentials_path, folder_id |
-
-### Endpoints
-- Connector: https://connector.aissential.pro/v1
-- GET /credentials/{service} - Get credentials for a service
+### AI Provider ✅
+- **Provider**: OpenAI
+- **Model**: gpt-4o / gpt-4o-mini
+- **Fallback**: AI Hub multi-provider
 
 ## Architecture
+
 ```
-/opt/aissential-legal-agent/
+aissential-legal-agent/
 ├── app/
-│   ├── main.py                 # Point d'entrée, orchestrateur
-│   ├── system_prompt.txt       # Prompt système pour Claude
+│   ├── main.py                 # Entry point (batch scan)
+│   ├── bot.py                  # Telegram bot interactif
+│   ├── system_prompt.txt       # Prompt CLO Vietnam
+│   │
 │   ├── config/
-│   │   ├── __init__.py
-│   │   └── settings.py         # Variables d'environnement
-│   ├── lib/
-│   │   ├── gateway/
-│   │   │   ├── client.py       # Gateway HTTP client
-│   │   │   └── modules.py      # Module ID constants
-│   │   └── connector/
-│   │       ├── client.py       # Connector HTTP client
-│   │       └── services.py     # Service credential helpers
+│   │   └── settings.py         # Configuration
+│   │
 │   ├── services/
-│   │   ├── __init__.py
-│   │   ├── claude_client.py    # Client Anthropic avec retry
-│   │   ├── contract_analyzer.py # Analyse des contrats
-│   │   └── file_parser.py      # Extraction texte PDF/DOCX
+│   │   ├── contract_analyzer.py  # Analyse contrats + alertes
+│   │   ├── legal_monitor.py      # Veille juridique Vietnam
+│   │   ├── claude_client.py      # Client AI unifié
+│   │   └── file_parser.py        # Extraction PDF/DOCX
+│   │
 │   ├── integrations/
-│   │   ├── __init__.py
 │   │   ├── telegram_bot.py     # Envoi alertes
-│   │   └── google_drive.py     # Scan Google Drive
+│   │   └── google_drive.py     # Scan Drive récursif
+│   │
+│   ├── lib/
+│   │   ├── ai_hub/             # Multi-provider AI
+│   │   ├── gateway/            # LLM Gateway client (future)
+│   │   └── connector/          # AI Connector client (future)
+│   │
 │   └── memory/
-│       ├── __init__.py
-│       ├── processed_files.py  # Tracking fichiers traités
-│       └── processed.json      # Persistance
-├── logs/
-│   ├── app.log
-│   └── errors.log
-├── venv/
-├── .env                        # Secrets (JAMAIS commit)
-├── .env.example                # Template des variables
-├── gcp.json                    # Service account Google (JAMAIS commit)
+│       └── processed_files.py  # Tracking fichiers traités
+│
+├── docs/
+│   └── ARCHITECTURE.md         # Documentation complète
+│
+├── .env                        # Configuration (secrets)
+├── gcp.json                    # Google credentials
 ├── requirements.txt
-└── README.md
+└── CONTEXT.md                  # Ce fichier
 ```
 
-## Environment Variables
-| Variable | Description |
-|----------|-------------|
-| **Connector (prioritaire)** | |
-| CONNECTOR_BASE_URL | URL Connector (https://connector.aissential.pro/v1) |
-| CONNECTOR_API_KEY | Clé API Connector (optionnel, fallback sur env vars) |
-| **Gateway** | |
-| GATEWAY_API_KEY | Clé API Gateway |
-| GATEWAY_BASE_URL | URL base Gateway (https://gateway.aissential.pro/v1) |
-| GATEWAY_CLIENT_ID | Client ID (aissential-internal) |
-| **Fallback (si pas de Connector)** | |
-| TELEGRAM_TOKEN | Token bot Telegram |
-| TELEGRAM_CHAT_ID | ID chat pour alertes |
-| GOOGLE_APPLICATION_CREDENTIALS | Chemin vers gcp.json |
-| GOOGLE_DRIVE_FOLDER_ID | ID dossier Drive à scanner |
-| **Autres** | |
-| RISK_THRESHOLD_ALERT | Seuil d'alerte (défaut: 60) |
+## Telegram Bot Commands
 
-## Key Features
-- [x] Structure projet définie
-- [x] config/settings.py - Chargement .env avec validation
-- [x] services/claude_client.py - Client avec retry/backoff
-- [x] services/contract_analyzer.py - Analyse + parsing JSON
-- [x] services/file_parser.py - Support PDF/DOCX
-- [x] integrations/telegram_bot.py - Alertes
-- [x] integrations/google_drive.py - Polling Drive
-- [x] memory/processed_files.py - Tracking fichiers
-- [x] main.py - Orchestrateur
-- [x] system_prompt.txt - Prompt juridique
-- [x] requirements.txt - Dépendances
-- [x] .env.example - Template
-- [x] lib/gateway/ - LLM Gateway client
-- [x] lib/connector/ - AI Connector client (centralized credentials)
-- [ ] README.md - Documentation
-- [x] GitHub repo créé
+| Commande | Description |
+|----------|-------------|
+| `/start`, `/help` | Afficher l'aide |
+| `/ping` | Test de connectivité |
+| `/scan` | Scanner tous les dossiers Drive (récursif) |
+| `/veille` | Veille juridique Vietnam avec scoring |
+| `/status` | Statut du bot et statistiques |
+| `/analyze` | Instructions pour analyser un fichier |
+| **Envoyer fichier** | Analyse automatique PDF/DOCX |
+
+## Veille Juridique - Scoring d'Impact
+
+| Score | Niveau | Critères | Action |
+|-------|--------|----------|--------|
+| 🔴 90-100 | CRITIQUE | Lois étrangers, SME, work permits | Immédiate |
+| 🟠 70-89 | ÉLEVÉ | Droit travail, data, assurance | 30 jours |
+| 🟡 40-69 | MODÉRÉ | Business général | Surveiller |
+| 🟢 0-39 | FAIBLE | Mises à jour mineures | Info |
+
+### Domaines surveillés (priorité haute)
+- 👤 Étrangers au Vietnam (work permits, visas, ownership)
+- 🏢 Lois SME/Entreprises (licences, immatriculation)
+- 🤖 Réglementation IA/Tech
+- 🏛️ Projets de loi à l'Assemblée nationale
+
+## Configuration (.env)
+
+```bash
+# AI Provider (au moins un requis)
+OPENAI_API_KEY=sk-...
+
+# Telegram
+TELEGRAM_TOKEN=...
+TELEGRAM_CHAT_ID=...
+
+# Google Drive (multi-dossiers, virgules)
+GOOGLE_APPLICATION_CREDENTIALS=gcp.json
+GOOGLE_DRIVE_FOLDER_IDS=id1,id2,id3
+
+# Alertes
+RISK_THRESHOLD_ALERT=60
+
+# Future: Gateway & Connector
+# GATEWAY_BASE_URL=https://gateway.aissential.pro/v1
+# GATEWAY_API_KEY=...
+# CONNECTOR_BASE_URL=https://connector.aissential.pro/v1
+# CONNECTOR_API_KEY=...
+```
+
+## Commands
+
+```bash
+# Activer environnement
+cd C:/Users/franc/projects/aissential-legal-agent
+./venv/Scripts/activate
+
+# Lancer bot interactif
+python app/bot.py
+
+# Lancer scan batch
+python app/main.py
+```
+
+## Documentation
+
+📄 **Documentation complète**: `docs/ARCHITECTURE.md`
+- Architecture détaillée
+- Intégration Gateway & Connector
+- Communication inter-agents
+- API Reference
+- Schémas de données
+- Déploiement
+- Roadmap
 
 ## GitHub
 - **Repo**: https://github.com/aissential-pro/aissential-legal-agent
@@ -132,15 +168,24 @@ Configure credentials once in the Connector, use them everywhere.
 
 ## Progress Log
 - **2026-02-02**: Création structure initiale
-- **2026-02-02**: Tous les modules Python créés (config, services, integrations, memory)
-- **2026-02-02**: Repo GitHub créé et push initial (17 fichiers, 808 lignes)
-- **2026-02-02**: Refactored to use LLM Gateway (aligned with aissential-platform architecture)
-- **2026-02-02**: Added AI Connector integration for centralized credentials management
+- **2026-02-02**: Modules Python (config, services, integrations)
+- **2026-02-02**: GitHub repo créé
+- **2026-02-02**: AI Hub multi-provider
+- **2026-02-02**: Telegram configuré et testé ✅
+- **2026-02-02**: Google Drive service account ✅
+- **2026-02-02**: Premier scan réussi (2 contrats)
+- **2026-02-02**: Support multi-dossiers Drive
+- **2026-02-02**: Scan récursif (sous-dossiers)
+- **2026-02-02**: Bot Telegram interactif
+- **2026-02-02**: Contexte juridique Vietnam (CLO)
+- **2026-02-02**: Veille juridique avec scoring d'impact
+- **2026-02-02**: Surveillance projets de loi (Quốc hội)
+- **2026-02-02**: Conseils proactifs intégrés
+- **2026-02-02**: Documentation ARCHITECTURE.md
 
 ## Next Steps
-1. Register legal-agent in Gateway admin
-2. Get Gateway API key
-3. Test with Gateway
-4. Ajouter README.md avec instructions de déploiement
-5. Configurer les credentials (Telegram, Google)
-6. Déployer sur VPS
+1. Déployer sur VPS production
+2. Activer AI Connector quand prêt
+3. Activer LLM Gateway quand prêt
+4. Connecter avec Admin Agent
+5. Ajouter alertes email

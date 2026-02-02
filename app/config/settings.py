@@ -26,11 +26,25 @@ GATEWAY_CLIENT_ID = os.getenv("GATEWAY_CLIENT_ID", "aissential-internal")
 # Application identifier (hardcoded)
 APP_ID = "legal-agent"
 
+# AI Provider API Keys (at least one required)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+
 # API Keys and Credentials
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
-GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+# Google credentials - convert relative path to absolute
+_gcp_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+if _gcp_creds and not Path(_gcp_creds).is_absolute():
+    GOOGLE_APPLICATION_CREDENTIALS = str(BASE_DIR / _gcp_creds)
+else:
+    GOOGLE_APPLICATION_CREDENTIALS = _gcp_creds
+
+# Google Drive folders (supports multiple, comma-separated)
+_folder_ids_raw = os.getenv("GOOGLE_DRIVE_FOLDER_IDS", "") or os.getenv("GOOGLE_DRIVE_FOLDER_ID", "")
+GOOGLE_DRIVE_FOLDER_IDS = [f.strip() for f in _folder_ids_raw.split(",") if f.strip()]
 
 # Risk threshold for alerts (default: 60)
 RISK_THRESHOLD_ALERT = int(os.getenv("RISK_THRESHOLD_ALERT", "60"))
@@ -51,7 +65,7 @@ class _Settings:
         self.APP_ID = APP_ID
         self.TELEGRAM_TOKEN = TELEGRAM_TOKEN
         self.TELEGRAM_CHAT_ID = TELEGRAM_CHAT_ID
-        self.GOOGLE_DRIVE_FOLDER_ID = GOOGLE_DRIVE_FOLDER_ID
+        self.GOOGLE_DRIVE_FOLDER_IDS = GOOGLE_DRIVE_FOLDER_IDS
         self.GOOGLE_APPLICATION_CREDENTIALS = GOOGLE_APPLICATION_CREDENTIALS
         self.RISK_THRESHOLD_ALERT = RISK_THRESHOLD_ALERT
         self.CLAUDE_MODEL = CLAUDE_MODEL
@@ -68,13 +82,10 @@ def validate_config() -> None:
     Raises:
         ValueError: If any required configuration variable is missing.
     """
+    # Required variables
     required_vars = {
-        "GATEWAY_BASE_URL": GATEWAY_BASE_URL,
-        "GATEWAY_API_KEY": GATEWAY_API_KEY,
-        "GATEWAY_CLIENT_ID": GATEWAY_CLIENT_ID,
         "TELEGRAM_TOKEN": TELEGRAM_TOKEN,
         "TELEGRAM_CHAT_ID": TELEGRAM_CHAT_ID,
-        "GOOGLE_DRIVE_FOLDER_ID": GOOGLE_DRIVE_FOLDER_ID,
         "GOOGLE_APPLICATION_CREDENTIALS": GOOGLE_APPLICATION_CREDENTIALS,
     }
 
@@ -83,4 +94,25 @@ def validate_config() -> None:
     if missing_vars:
         raise ValueError(
             f"Missing required configuration variables: {', '.join(missing_vars)}"
+        )
+
+    # At least one Drive folder required
+    if not GOOGLE_DRIVE_FOLDER_IDS:
+        raise ValueError(
+            "At least one Google Drive folder ID is required: "
+            "Set GOOGLE_DRIVE_FOLDER_IDS (comma-separated for multiple)"
+        )
+
+    # At least one AI provider required
+    ai_providers = {
+        "GATEWAY_API_KEY": GATEWAY_API_KEY,
+        "OPENAI_API_KEY": OPENAI_API_KEY,
+        "ANTHROPIC_API_KEY": ANTHROPIC_API_KEY,
+        "MISTRAL_API_KEY": MISTRAL_API_KEY,
+    }
+
+    if not any(ai_providers.values()):
+        raise ValueError(
+            "At least one AI provider API key is required: "
+            "GATEWAY_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, or MISTRAL_API_KEY"
         )

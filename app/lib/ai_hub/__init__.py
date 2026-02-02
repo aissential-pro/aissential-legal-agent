@@ -9,7 +9,7 @@ Supports multiple AI providers with a unified interface:
 - Local models (Ollama) - future
 
 Usage:
-    from app.lib.ai_hub import get_ai_client, ask_ai
+    from lib.ai_hub import get_ai_client, ask_ai
 
     # Simple usage
     response = ask_ai("Analyze this contract...", provider="openai")

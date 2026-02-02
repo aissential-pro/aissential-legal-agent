@@ -8,7 +8,7 @@ supporting multiple AI providers (OpenAI, Anthropic, etc.)
 import os
 import logging
 
-from app.lib.ai_hub import ask_ai, get_hub, AIMessage
+from lib.ai_hub import ask_ai, get_hub, AIMessage
 
 logger = logging.getLogger(__name__)
 
@@ -95,8 +95,8 @@ def _ask_via_gateway(
     retries: int,
 ) -> str:
     """Route request through the AIssential Gateway."""
-    from app.config.settings import settings
-    from app.lib.gateway.client import GatewayClient, GatewayError
+    from config.settings import settings
+    from lib.gateway.client import GatewayClient, GatewayError
 
     client = GatewayClient(
         base_url=settings.GATEWAY_BASE_URL,

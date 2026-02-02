@@ -2,8 +2,8 @@ import logging
 
 import requests
 
-from app.config.settings import settings
-from app.lib.connector.services import get_telegram_credentials
+from config.settings import settings
+from lib.connector.services import get_telegram_credentials
 
 logger = logging.getLogger(__name__)
 
