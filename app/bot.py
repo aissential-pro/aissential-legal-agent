@@ -500,15 +500,14 @@ def run_bot():
     )
     logger.info("Scheduled daily expiration check at 9:00 AM Vietnam time")
 
-    # Heartbeat every 6 hours
+    # Daily heartbeat at 7:00 AM Vietnam time (00:00 UTC)
     if HEARTBEAT_ENABLED:
-        job_queue.run_repeating(
+        job_queue.run_daily(
             scheduled_heartbeat,
-            interval=timedelta(hours=HEARTBEAT_INTERVAL_HOURS),
-            first=timedelta(minutes=5),  # First heartbeat 5 min after start
+            time=time(hour=0, minute=0),  # UTC time (7:00 AM Vietnam = 0:00 UTC)
             name="heartbeat"
         )
-        logger.info(f"Scheduled heartbeat every {HEARTBEAT_INTERVAL_HOURS} hours")
+        logger.info("Scheduled daily heartbeat at 7:00 AM Vietnam time")
 
     # Start polling
     logger.info("Bot is running. Press Ctrl+C to stop.")
