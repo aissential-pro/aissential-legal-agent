@@ -137,7 +137,52 @@ RISK_THRESHOLD_ALERT=60
 # CONNECTOR_API_KEY=...
 ```
 
-## Commands
+## Déploiement VPS Production ✅
+
+### Serveur
+- **IP**: 72.60.104.129
+- **OS**: Ubuntu
+- **User**: frawan
+- **Path**: `/home/frawan/aissential-legal-agent`
+- **Process Manager**: pm2
+
+### Connexion SSH
+```bash
+ssh -i C:\Users\franc\.ssh\id_ed25519_vps_francis_hcm frawan@72.60.104.129
+```
+
+### Commandes pm2 (sur VPS)
+```bash
+# Voir status
+pm2 status
+
+# Voir logs
+pm2 logs legal-agent
+
+# Redémarrer
+pm2 restart legal-agent
+
+# Arrêter
+pm2 stop legal-agent
+
+# Démarrer
+pm2 start legal-agent
+```
+
+### Mise à jour du bot (depuis local)
+```bash
+# 1. Push les changements
+cd C:/Users/franc/projects/aissential-legal-agent
+git add . && git commit -m "update" && git push
+
+# 2. Sur VPS
+ssh -i C:\Users\franc\.ssh\id_ed25519_vps_francis_hcm frawan@72.60.104.129
+cd ~/aissential-legal-agent
+git pull
+pm2 restart legal-agent
+```
+
+## Commands (Local)
 
 ```bash
 # Activer environnement
@@ -149,6 +194,9 @@ python app/bot.py
 
 # Lancer scan batch
 python app/main.py
+
+# Lancer avec supervision (restart auto)
+python app/supervisor.py
 ```
 
 ## Documentation
@@ -182,10 +230,13 @@ python app/main.py
 - **2026-02-02**: Surveillance projets de loi (Quốc hội)
 - **2026-02-02**: Conseils proactifs intégrés
 - **2026-02-02**: Documentation ARCHITECTURE.md
+- **2026-02-03**: Améliorations fiabilité (retry, supervisor, health check)
+- **2026-02-03**: Optimisation /veille (15 min → ~20 sec)
+- **2026-02-03**: Heartbeat automatique toutes les 6h
+- **2026-02-03**: Déploiement VPS production (pm2) ✅
 
 ## Next Steps
-1. Déployer sur VPS production
-2. Activer AI Connector quand prêt
-3. Activer LLM Gateway quand prêt
-4. Connecter avec Admin Agent
-5. Ajouter alertes email
+1. Activer AI Connector quand prêt
+2. Activer LLM Gateway quand prêt
+3. Connecter avec Admin Agent
+4. Ajouter alertes email
