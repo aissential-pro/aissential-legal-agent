@@ -5,6 +5,7 @@ Commands:
 - /start, /help - Show available commands
 - /scan - Trigger immediate Drive scan
 - /status - Show bot status and stats
+- /health - Quick health check
 - /analyze - Send a file to analyze (reply to a document)
 - /veille - Legal monitoring for Vietnam
 - /expirations - Check upcoming contract expirations
@@ -12,12 +13,15 @@ Commands:
 Scheduled Jobs:
 - Daily veille at 8:00 AM
 - Expiration check at 9:00 AM
+- Heartbeat every 6 hours
 """
 
 import logging
 import tempfile
+import platform
+import psutil
 from pathlib import Path
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 from telegram import Update, Document
 from telegram.ext import (
@@ -38,15 +42,91 @@ logger = logging.getLogger(__name__)
 # Bot state
 _bot_start_time = datetime.now()
 _files_analyzed_session = 0
+_last_error = None
+_error_count = 0
 
 # Timezone for Vietnam (UTC+7)
 VIETNAM_TZ_OFFSET = 7
+
+# Heartbeat settings
+HEARTBEAT_INTERVAL_HOURS = 6
+HEARTBEAT_ENABLED = True
 
 
 async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /ping command - simple test."""
     logger.info(f"Ping received from {update.effective_user.id}")
-    await update.message.reply_text("🏓 Pong! Le bot fonctionne.")
+    await update.message.reply_text("Pong! Le bot fonctionne.")
+
+
+async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /health command - quick health check."""
+    global _bot_start_time, _last_error, _error_count
+
+    uptime = datetime.now() - _bot_start_time
+    days = uptime.days
+    hours, remainder = divmod(int(uptime.total_seconds()) % 86400, 3600)
+    minutes, _ = divmod(remainder, 60)
+
+    # System health checks
+    checks = []
+
+    # Check memory usage
+    try:
+        memory = psutil.virtual_memory()
+        mem_ok = memory.percent < 90
+        checks.append(("Memoire", mem_ok, f"{memory.percent:.0f}%"))
+    except:
+        checks.append(("Memoire", True, "N/A"))
+
+    # Check disk space
+    try:
+        disk = psutil.disk_usage('/')
+        disk_ok = disk.percent < 90
+        checks.append(("Disque", disk_ok, f"{disk.percent:.0f}%"))
+    except:
+        checks.append(("Disque", True, "N/A"))
+
+    # Check Google Drive connection
+    try:
+        from integrations.google_drive import get_drive_service
+        service = get_drive_service()
+        service.files().list(pageSize=1).execute()
+        checks.append(("Google Drive", True, "OK"))
+    except Exception as e:
+        checks.append(("Google Drive", False, str(e)[:30]))
+
+    # Check AI provider
+    try:
+        from lib.ai_hub import get_hub
+        hub = get_hub()
+        ai_ok = hub.default_provider is not None
+        checks.append(("AI Provider", ai_ok, hub.default_provider or "None"))
+    except Exception as e:
+        checks.append(("AI Provider", False, str(e)[:30]))
+
+    # Build health report
+    all_ok = all(ok for _, ok, _ in checks)
+    status_icon = "OK" if all_ok else "DEGRADED"
+
+    lines = [
+        f"*Health Check - {status_icon}*",
+        f"",
+        f"Uptime: {days}j {hours}h {minutes}m",
+        f"Erreurs: {_error_count}",
+        f"",
+        "*Composants:*",
+    ]
+
+    for name, ok, detail in checks:
+        icon = "[OK]" if ok else "[KO]"
+        lines.append(f"  {icon} {name}: {detail}")
+
+    if _last_error:
+        lines.append(f"")
+        lines.append(f"Derniere erreur: {_last_error[:50]}")
+
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -227,6 +307,50 @@ async def scheduled_expiration_check(context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Scheduled expiration check error: {e}", exc_info=True)
 
 
+async def scheduled_heartbeat(context: ContextTypes.DEFAULT_TYPE):
+    """Periodic heartbeat to confirm bot is alive."""
+    global _bot_start_time, _files_analyzed_session, _error_count
+
+    if not HEARTBEAT_ENABLED:
+        return
+
+    logger.info("Sending heartbeat...")
+
+    try:
+        from integrations.telegram_bot import send_alert
+
+        uptime = datetime.now() - _bot_start_time
+        days = uptime.days
+        hours, remainder = divmod(int(uptime.total_seconds()) % 86400, 3600)
+        minutes, _ = divmod(remainder, 60)
+
+        # Get memory info
+        try:
+            memory = psutil.virtual_memory()
+            mem_info = f"{memory.percent:.0f}%"
+        except:
+            mem_info = "N/A"
+
+        processed_count = len(get_processed_ids())
+
+        message = (
+            f"*Heartbeat - Bot Legal Agent*\n\n"
+            f"Statut: En ligne\n"
+            f"Uptime: {days}j {hours}h {minutes}m\n"
+            f"Memoire: {mem_info}\n"
+            f"Fichiers analyses (session): {_files_analyzed_session}\n"
+            f"Total fichiers traites: {processed_count}\n"
+            f"Erreurs: {_error_count}\n"
+            f"Heure: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        )
+
+        send_alert(message)
+        logger.info("Heartbeat sent successfully")
+
+    except Exception as e:
+        logger.error(f"Heartbeat error: {e}", exc_info=True)
+
+
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle document uploads for analysis."""
     global _files_analyzed_session
@@ -349,6 +473,7 @@ def run_bot():
     # Add command handlers
     app.add_handler(CommandHandler(["start", "help"], start_command))
     app.add_handler(CommandHandler("ping", ping_command))
+    app.add_handler(CommandHandler("health", health_command))
     app.add_handler(CommandHandler("scan", scan_command))
     app.add_handler(CommandHandler("status", status_command))
     app.add_handler(CommandHandler("analyze", analyze_command))
@@ -375,14 +500,30 @@ def run_bot():
     )
     logger.info("Scheduled daily expiration check at 9:00 AM Vietnam time")
 
+    # Heartbeat every 6 hours
+    if HEARTBEAT_ENABLED:
+        job_queue.run_repeating(
+            scheduled_heartbeat,
+            interval=timedelta(hours=HEARTBEAT_INTERVAL_HOURS),
+            first=timedelta(minutes=5),  # First heartbeat 5 min after start
+            name="heartbeat"
+        )
+        logger.info(f"Scheduled heartbeat every {HEARTBEAT_INTERVAL_HOURS} hours")
+
     # Start polling
     logger.info("Bot is running. Press Ctrl+C to stop.")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-    )
+    # Use improved logging configuration
+    try:
+        from utils.logging_config import setup_logging
+        setup_logging(log_level="INFO")
+    except ImportError:
+        # Fallback to basic logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+        )
     run_bot()

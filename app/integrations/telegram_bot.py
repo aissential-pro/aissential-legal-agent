@@ -1,13 +1,16 @@
 import logging
+import time
 
 import requests
 
 from config.settings import settings
 from lib.connector.services import get_telegram_credentials
+from utils.reliability import retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
 
+@retry_with_backoff(max_retries=5, base_delay=2.0, max_delay=30.0)
 def send_alert(message: str) -> bool:
     """
     Send an alert message via Telegram bot.
