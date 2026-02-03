@@ -47,126 +47,50 @@ async def get_legal_updates() -> str:
     """
     Get recent legal updates relevant to AIssential.
 
-    Uses web search + AI analysis to find current legal news.
+    Uses AI analysis to find current legal news.
+    Optimized for speed with gpt-4o-mini.
     """
+    import time
     from lib.ai_hub import ask_ai
 
-    # First, gather recent search results
-    search_context = []
-    for query in SEARCH_QUERIES[:3]:  # Limit to avoid timeout
-        try:
-            result = await _search_web(query)
-            if result:
-                # Extract just a snippet (first 1000 chars after body)
-                if "<body" in result:
-                    snippet = result[result.find("<body"):result.find("<body")+2000]
-                    search_context.append(f"Query: {query}\nResults snippet available")
-        except Exception as e:
-            logger.warning(f"Search failed for {query}: {e}")
+    start_time = time.time()
+    logger.info("Starting legal updates analysis...")
 
-    # Now ask AI with instruction to search for current info
-    prompt = f"""You are a legal analyst monitoring Vietnamese law changes for AIssential.
+    # Simplified prompt for faster response
+    prompt = f"""Date: {datetime.now().strftime('%d/%m/%Y')}
 
-## COMPANY PROFILE (for impact assessment)
-- **Company**: AIssential - AI consulting for startups
-- **Location**: Vietnam (Ho Chi Minh City)
-- **Structure**: Foreign-owned SME
-- **Activities**: AI/Tech consulting, software, training
-- **Employees**: Local Vietnamese + foreigners
-- **Clients**: Startups, SMEs in Vietnam and abroad
+Analyse les actualités juridiques Vietnam pour AIssential (société de conseil IA, HCMC, employés vietnamiens et étrangers).
 
-TODAY'S DATE: {datetime.now().strftime('%d/%m/%Y')}
+Domaines prioritaires:
+1. Permis de travail / visa étrangers
+2. Loi entreprises / SME
+3. Réglementation IA / tech / données
+4. Droit du travail
+5. Fiscalité
 
-## YOUR TASK
-Find the LATEST legal updates and rate their IMPACT on AIssential.
+Pour chaque mise à jour importante:
+[emoji] **Titre** - Score: XX/100
+- Loi/Décret: [numéro]
+- Date effet: [date]
+- Impact: [1 ligne]
+- Action: [1 ligne]
 
-## IMPACT SCORING (use these levels)
-🔴 **CRITIQUE (Score 90-100)** - Action immédiate requise
-   - Laws affecting foreign-owned companies
-   - SME/Enterprise law major changes
-   - Work permit/visa rule changes for foreigners
-   - Tax law significant changes
-   - AI/Tech regulation that directly affects our business
+Termine par:
+⚠️ TOP 3 ACTIONS PRIORITAIRES
 
-🟠 **ÉLEVÉ (Score 70-89)** - Action dans 30 jours
-   - Labor law changes affecting employment contracts
-   - Social insurance contribution changes
-   - Data protection new requirements
-   - Licensing changes for consulting
-
-🟡 **MODÉRÉ (Score 40-69)** - À surveiller
-   - General business regulation updates
-   - Minor tax adjustments
-   - Procedural changes
-
-🟢 **FAIBLE (Score 0-39)** - Information only
-   - Unrelated sector regulations
-   - Minor administrative updates
-
-## RESEARCH THESE AREAS
-
-1. **FOREIGNERS IN VIETNAM** (HIGH PRIORITY)
-   - Work permit rules, visa changes
-   - Foreign ownership restrictions
-   - Investment regulations for foreign companies
-
-2. **SME & ENTERPRISE LAW** (HIGH PRIORITY)
-   - Business registration changes
-   - Corporate governance requirements
-   - Licensing for consulting/tech services
-
-3. **AI & TECHNOLOGY**
-   - AI governance frameworks
-   - Data localization requirements
-   - Digital transformation policies
-
-4. **LABOR LAW**
-   - Employment contract changes
-   - Social insurance updates
-   - Minimum wage changes
-
-5. **TAX & FINANCE**
-   - Corporate tax changes
-   - VAT updates
-   - Transfer pricing rules
-
-6. **CYBERSECURITY & DATA**
-   - Personal data protection
-   - Cross-border data transfer
-   - Compliance deadlines
-
-## OUTPUT FORMAT
-
-For each update found, provide:
-
-[IMPACT EMOJI] **[TITLE]** - Score: XX/100
-- 📜 Law/Decree: [Number]
-- 📅 Effective: [Date]
-- 💼 Impact on AIssential: [Specific impact]
-- ✅ Action required: [What to do]
-
----
-
-Then summarize:
-
-🏛️ **PROJETS DE LOI EN COURS**
-(Draft laws at National Assembly with impact scores)
-
-⚠️ **TOP 3 ACTIONS PRIORITAIRES**
-(Most urgent things AIssential must do)
-
-📅 **CALENDRIER CRITIQUE**
-(Key dates sorted by urgency)"""
+Scores: 🔴90+ critique | 🟠70-89 élevé | 🟡40-69 modéré | 🟢0-39 faible"""
 
     try:
+        logger.info("Calling OpenAI API...")
         response = ask_ai(
             prompt=prompt,
-            system="""You are an expert Vietnamese legal analyst with real-time knowledge of Vietnam's legal system.
-You stay current with all new laws, decrees (nghị định), circulars (thông tư), and government announcements.
-Always cite specific law numbers and effective dates. Focus on practical business impact.""",
+            system="Expert juridique Vietnam. Concis et pratique. Cite les numéros de loi.",
             provider="openai",
-            model="gpt-4o",  # Use more capable model for legal research
+            model="gpt-4o-mini",  # Fast model - 10x faster than gpt-4o
         )
+
+        elapsed = time.time() - start_time
+        logger.info(f"OpenAI response received in {elapsed:.1f}s")
 
         # Format the response
         header = f"🇻🇳 *VEILLE JURIDIQUE VIETNAM*\n📅 _{datetime.now().strftime('%d/%m/%Y %H:%M')}_\n\n"
