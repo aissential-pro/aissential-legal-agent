@@ -5,7 +5,7 @@
 ### 1. Fiabilité du bot (crash fréquents)
 - **Ajouté:** Supervisor avec restart automatique (`app/supervisor.py`)
 - **Ajouté:** Retry avec exponential backoff pour les appels API
-- **Ajouté:** Health check (`/health`) et heartbeat toutes les 6h
+- **Ajouté:** Health check (`/health`) et heartbeat quotidien à 7h00
 - **Ajouté:** Logs rotatifs (10 MB max)
 - **Ajouté:** Persistance robuste avec backup automatique
 
@@ -71,13 +71,36 @@ venv\Scripts\python.exe app\supervisor.py
 
 ## Heartbeat automatique
 
-Le bot envoie un message de statut **toutes les 6 heures** avec:
+Le bot envoie un message de statut **chaque jour à 7h00 (heure Vietnam)** avec:
 - Uptime
 - Utilisation mémoire du PC
 - Nombre de fichiers analysés
 - Nombre d'erreurs
 
-**Note:** "Mémoire 85%" = RAM totale du PC, pas du bot.
+**Note:** "Mémoire 85%" = RAM totale du VPS, pas du bot.
+
+---
+
+## Déploiement VPS Production
+
+| Info | Valeur |
+|------|--------|
+| **IP** | 72.60.104.129 |
+| **User** | frawan |
+| **Path** | `/home/frawan/aissential-legal-agent` |
+| **Process Manager** | pm2 (name: `legal-agent`) |
+
+### Connexion SSH
+```bash
+ssh -i C:\Users\franc\.ssh\id_ed25519_vps_francis_hcm frawan@72.60.104.129
+```
+
+### Commandes pm2 (sur VPS)
+```bash
+pm2 status              # Voir status
+pm2 logs legal-agent    # Voir logs
+pm2 restart legal-agent # Redémarrer
+```
 
 ---
 
@@ -102,5 +125,7 @@ Le bot envoie un message de statut **toutes les 6 heures** avec:
 
 1. `feat: Add reliability improvements for 99%+ uptime`
 2. `perf: Optimize /veille command for 10x faster response`
+3. `docs: Add VPS deployment info to CONTEXT.md`
+4. `chore: Schedule heartbeat daily at 7:00 AM Vietnam time`
 
 Repo: https://github.com/aissential-pro/aissential-legal-agent
